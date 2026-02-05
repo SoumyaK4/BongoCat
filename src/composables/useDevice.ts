@@ -1,6 +1,9 @@
 import { invoke } from '@tauri-apps/api/core'
+import { PhysicalPosition } from '@tauri-apps/api/dpi'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { cursorPosition } from '@tauri-apps/api/window'
+import { message } from 'ant-design-vue'
+import { useI18n } from 'vue-i18n'
 
 import { INVOKE_KEY, LISTEN_KEY } from '../constants'
 
@@ -34,14 +37,29 @@ interface KeyboardEvent {
 
 type DeviceEvent = MouseButtonEvent | MouseMoveEvent | KeyboardEvent
 
+const virtualCursorPos = { x: 0, y: 0 }
+const lastTauriPos = { x: -1, y: -1 }
+
 export function useDevice() {
+  const { t } = useI18n()
   const modelStore = useModelStore()
   const releaseTimers = new Map<string, NodeJS.Timeout>()
   const catStore = useCatStore()
   const { handlePress, handleRelease, handleMouseChange, handleMouseMove } = useModel()
 
-  const startListening = () => {
-    invoke(INVOKE_KEY.START_DEVICE_LISTENING)
+  const startListening = async () => {
+    const pos = await cursorPosition()
+    virtualCursorPos.x = pos.x
+    virtualCursorPos.y = pos.y
+    lastTauriPos.x = pos.x
+    lastTauriPos.y = pos.y
+
+    try {
+      await invoke(INVOKE_KEY.START_DEVICE_LISTENING)
+    } catch (error) {
+      message.error(t('composables.useDevice.errors.failedToAssignSeat'))
+      console.error(error)
+    }
   }
 
   const getSupportedKey = (key: string) => {
@@ -63,18 +81,35 @@ export function useDevice() {
     return nextKey
   }
 
-  const handleCursorMove = async () => {
-    const cursorPoint = await cursorPosition()
+  const handleCursorMove = async (value: any) => {
+    const tauriPos = await cursorPosition()
 
-    handleMouseMove(cursorPoint)
+    const tauriMoved = tauriPos.x !== lastTauriPos.x || tauriPos.y !== lastTauriPos.y
+
+    if (tauriMoved) {
+      virtualCursorPos.x = tauriPos.x
+      virtualCursorPos.y = tauriPos.y
+      lastTauriPos.x = tauriPos.x
+      lastTauriPos.y = tauriPos.y
+    } else if (value && typeof value === 'object') {
+      if ('dx' in value && 'dy' in value) {
+        virtualCursorPos.x += value.dx
+        virtualCursorPos.y += value.dy
+      } else if ('x' in value && 'y' in value) {
+        virtualCursorPos.x = value.x
+        virtualCursorPos.y = value.y
+      }
+    }
+
+    handleMouseMove(new PhysicalPosition(virtualCursorPos.x, virtualCursorPos.y))
 
     if (catStore.window.hideOnHover) {
       const appWindow = getCurrentWebviewWindow()
       const position = await appWindow.outerPosition()
       const { width, height } = await appWindow.innerSize()
 
-      const isInWindow = inBetween(cursorPoint.x, position.x, position.x + width)
-        && inBetween(cursorPoint.y, position.y, position.y + height)
+      const isInWindow = inBetween(virtualCursorPos.x, position.x, position.x + width)
+        && inBetween(virtualCursorPos.y, position.y, position.y + height)
 
       document.body.style.setProperty('opacity', isInWindow ? '0' : 'unset')
 
@@ -131,7 +166,7 @@ export function useDevice() {
       case 'MouseRelease':
         return handleMouseChange(value, false)
       case 'MouseMove':
-        return handleCursorMove()
+        return handleCursorMove(value)
     }
   })
 

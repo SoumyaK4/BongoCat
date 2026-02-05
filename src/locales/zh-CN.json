@@ -155,6 +155,11 @@
     }
   },
   "composables": {
+    "useDevice": {
+      "errors": {
+        "failedToAssignSeat": "初始化输入监控失败，请确保你已加入 'input' 用户组，然后重启应用。"
+      }
+    },
     "useSharedMenu": {
       "labels": {
         "preference": "偏好设置...",

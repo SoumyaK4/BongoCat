@@ -57,13 +57,20 @@ export function useModel() {
 
     const { width, height } = modelSize.value
 
-    if (round(innerWidth / innerHeight, 1) !== round(width / height, 1)) {
-      await appWindow.setSize(
-        new LogicalSize({
-          width: innerWidth,
-          height: Math.ceil(innerWidth * (height / width)),
-        }),
-      )
+    const innerSize = await appWindow.innerSize()
+
+    if (innerSize.width > 0 && innerSize.height > 0) {
+      if (round(innerSize.width / innerSize.height, 1) !== round(width / height, 1)) {
+        const nextHeight = Math.ceil(innerSize.width * (height / width))
+        if (nextHeight > 0) {
+          await appWindow.setSize(
+            new LogicalSize({
+              width: innerSize.width,
+              height: nextHeight,
+            }),
+          )
+        }
+      }
     }
 
     const size = await appWindow.size()

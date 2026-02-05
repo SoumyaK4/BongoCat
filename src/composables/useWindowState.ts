@@ -53,7 +53,7 @@ export function useWindowState() {
       }
     }
 
-    if (width && height) {
+    if (width && height && width > 0 && height > 0) {
       await appWindow.setSize(new PhysicalSize(width, height))
     }
 

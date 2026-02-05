@@ -155,6 +155,11 @@
     }
   },
   "composables": {
+    "useDevice": {
+      "errors": {
+        "failedToAssignSeat": "Failed to initialize input tracking. Make sure you are in the 'input' group and restart the app."
+      }
+    },
     "useSharedMenu": {
       "labels": {
         "preference": "Preferences...",

@@ -88,13 +88,17 @@ watch([() => catStore.window.scale, modelSize], async ([scale, modelSize]) => {
   if (!modelSize) return
 
   const { width, height } = modelSize
+  const nextWidth = Math.round(width * (scale / 100))
+  const nextHeight = Math.round(height * (scale / 100))
 
-  appWindow.setSize(
-    new PhysicalSize({
-      width: Math.round(width * (scale / 100)),
-      height: Math.round(height * (scale / 100)),
-    }),
-  )
+  if (nextWidth > 0 && nextHeight > 0) {
+    appWindow.setSize(
+      new PhysicalSize({
+        width: nextWidth,
+        height: nextHeight,
+      }),
+    )
+  }
 }, { immediate: true })
 
 watch([modelStore.pressedKeys, stickActive], ([keys, stickActive]) => {
