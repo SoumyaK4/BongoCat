@@ -1,0 +1,58 @@
+name: Build AppImage
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-appimage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: latest
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libudev-dev libinput-dev patchelf xdg-utils
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: target
+
+      - name: Sync node version and setup cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install front-end dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build icons
+        run: pnpm build:icon
+
+      - name: Build the app
+        run: |
+          # Always disable signing for this workflow to ensure it succeeds even without repo secrets
+          sed -i 's/"createUpdaterArtifacts":[[:space:]]*true/"createUpdaterArtifacts": false/' src-tauri/tauri.conf.json
+          sed -i 's/"pubkey":[[:space:]]*"[^"]*"/"pubkey": ""/' src-tauri/tauri.conf.json
+          pnpm tauri build --bundles appimage
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: BongoCat-AppImage
+          path: target/release/bundle/appimage/*.AppImage
